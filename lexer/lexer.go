@@ -24,6 +24,9 @@ func New(input string) *Lexer {
 func (l *Lexer) NextToken() token.Token {
 	var tok token.Token
 
+	// Skip whitespace as it has no meaning, only used as separator
+	l.skipWhitespace()
+
 	switch l.ch {
 	case '=':
 		tok = newToken(token.ASSIGN, l.ch)
@@ -51,15 +54,28 @@ func (l *Lexer) NextToken() token.Token {
 			// Lookup the token type based on the identifier
 			tok.Type = token.LookupIdent(tok.Literal)
 			return tok
+		} else if isNumber(l.ch) {
+			// Read remaining characters of the INT
+			tok.Literal = l.readNumber()
+			tok.Type = token.INT
+			return tok
 		} else {
 			// Unrecognized character
 			tok = newToken(token.ILLEGAL, l.ch)
 		}
 	}
 
-	// Advance lexer position
+	// Advance lexer position to next character
 	l.readChar()
 	return tok
+}
+
+// Skip (advance lexer) past all whitespaces including spaces, tabs, newlines,
+// carriage returns
+func (l *Lexer) skipWhitespace() {
+	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
+		l.readChar()
+	}
 }
 
 // Read an identifier from the lexer input, advancing the lexer position until
@@ -74,9 +90,27 @@ func (l *Lexer) readIdentifier() string {
 	return l.input[startPos:l.position]
 }
 
+// Read a number from the lexer input, advancing the lexer position until a
+// non-number character is encountered. For simplicity, integers are the only
+// supported number data type.
+func (l *Lexer) readNumber() string {
+	// Starting position of the identifier we are currently reading
+	startPos := l.position
+	// Advance lexer position until end of identifier
+	for isNumber(l.ch) {
+		l.readChar()
+	}
+	return l.input[startPos:l.position]
+}
+
 // Check if character is allowed in identifier (letter or underscore)
 func isLetter(ch byte) bool {
 	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_'
+}
+
+// Check if character is allowed in integer (numbers 0-9 only)
+func isNumber(ch byte) bool {
+	return '0' <= ch && ch <= '9'
 }
 
 // Create a new token with the given token type and literal value
