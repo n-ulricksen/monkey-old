@@ -44,11 +44,39 @@ func (l *Lexer) NextToken() token.Token {
 	case 0:
 		tok.Literal = ""
 		tok.Type = token.EOF
+	default:
+		if isLetter(l.ch) {
+			// Read remaining characters of the identifier
+			tok.Literal = l.readIdentifier()
+			// Lookup the token type based on the identifier
+			tok.Type = token.LookupIdent(tok.Literal)
+			return tok
+		} else {
+			// Unrecognized character
+			tok = newToken(token.ILLEGAL, l.ch)
+		}
 	}
 
-	// Initialize token based on l.ch
+	// Advance lexer position
 	l.readChar()
 	return tok
+}
+
+// Read an identifier from the lexer input, advancing the lexer position until
+// a non-letter character is encountered
+func (l *Lexer) readIdentifier() string {
+	// Starting position of the identifier we are currently reading
+	startPos := l.position
+	// Advance lexer position until end of identifier
+	for isLetter(l.ch) {
+		l.readChar()
+	}
+	return l.input[startPos:l.position]
+}
+
+// Check if character is allowed in identifier (letter or underscore)
+func isLetter(ch byte) bool {
+	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_'
 }
 
 // Create a new token with the given token type and literal value
@@ -56,8 +84,8 @@ func newToken(tokenType token.TokenType, ch byte) token.Token {
 	return token.Token{Type: tokenType, Literal: string(ch)}
 }
 
-// Get the next character in the lexer's input, and advance the lexer's
-// position in the input.
+// Get the next character in the lexer input, and advance the lexer position
+// in the input
 func (l *Lexer) readChar() {
 	// Check if the end of the input has been reached
 	if l.readPosition >= len(l.input) {

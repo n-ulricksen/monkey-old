@@ -36,3 +36,17 @@ const (
 	FUNCTION = "FUNCTION"
 	LET      = "LET"
 )
+
+// Keywords, as defined by the language, mapped to their respective token type
+var keywords = map[string]TokenType{
+	"fn":  FUNCTION,
+	"let": LET,
+}
+
+// Get an identifier's token type, either a keyword or user-defined identifier
+func LookupIdent(ident string) TokenType {
+	if keyword, ok := keywords[ident]; ok {
+		return keyword
+	}
+	return IDENT
+}
