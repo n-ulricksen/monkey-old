@@ -30,7 +30,12 @@ func (l *Lexer) NextToken() token.Token {
 	switch l.ch {
 	case '=':
 		// If next character is '=', create a token of type EQ "=="
+		// Note: this functionality should be extracted if more two-character
+		// tokens are implemented.
 		if l.peekChar() == '=' {
+			// Make a copy of the current character before advancing the lexer
+			// position. This character and the next character will be used to
+			// construct the token's literal value.
 			ch := l.ch
 			l.readChar()
 			tok = token.Token{Type: token.EQ, Literal: string(ch) + string(l.ch)}
