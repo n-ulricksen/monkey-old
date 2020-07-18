@@ -76,6 +76,8 @@ func (p *Parser) parseStatement() ast.Statement {
 	switch p.curToken.Type {
 	case token.LET:
 		return p.parseLetStatement()
+	case token.RETURN:
+		return p.parseReturnStatement()
 	default:
 		return nil
 	}
@@ -85,7 +87,7 @@ func (p *Parser) parseStatement() ast.Statement {
 // parser tokens while checking/asserting the next token's type for the next
 // expected token type. (let <IDENT> = <expression>)
 func (p *Parser) parseLetStatement() *ast.LetStatement {
-	// Create let statement with current token (LET token)
+	// Create "let" statement with current token (LET token)
 	stmt := &ast.LetStatement{Token: p.curToken}
 
 	// Check for identifier
@@ -107,7 +109,22 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 	return stmt
 }
 
-// Check whether the next token is of the expected token type
+func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
+	// Create "return" statement with current token (RETURN token)
+	stmt := &ast.ReturnStatement{Token: p.curToken}
+
+	// Advance the parser to beginning of expression to be parsed
+	p.nextToken()
+
+	// TODO: For now, we skip over expressions until a semicolon is encountered
+	for !p.curTokenIs(token.SEMICOLON) {
+		p.nextToken()
+	}
+
+	return stmt
+}
+
+// Check whether the next token is of the expected token type, advance the parser
 func (p *Parser) expectPeek(t token.TokenType) bool {
 	if p.peekTokenIs(t) {
 		p.nextToken()
