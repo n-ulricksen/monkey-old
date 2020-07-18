@@ -10,11 +10,35 @@ import (
 
 // Parser implementing recursive-descent parsing
 type Parser struct {
-	l         *lexer.Lexer // lexer containing tokenized source code
-	curToken  token.Token  // current token under examination
-	peekToken token.Token  // next token; checked when forming program statements
-	errors    []string     // errors due to incorrect token types (syntax errors)
+	l      *lexer.Lexer // lexer containing tokenized source code
+	errors []string     // errors due to incorrect token types (syntax errors)
+
+	curToken  token.Token // current token under examination
+	peekToken token.Token // next token; checked when forming program statements
+
+	prefixParseFns map[token.TokenType]prefixParseFn
+	infixParseFns  map[token.TokenType]infixParseFn
 }
+
+// Prefix and infix parsing function types
+type (
+	prefixParseFn func() ast.Expression
+	// infixParseFn accepts an expression representing the left side of the
+	// infix expression being parsed
+	infixParseFn func(ast.Expression) ast.Expression
+)
+
+// Operator precedence
+const (
+	_ int = iota
+	LOWEST
+	EQUALS      // ==
+	LESSGREATER // > or <
+	SUM         // +
+	PRODUCT     // *
+	PREFIX      // -X or !X
+	CALL        // myFunction(X)
+)
 
 // Create a new parser which will use the given lexer
 func New(l *lexer.Lexer) *Parser {
@@ -22,6 +46,10 @@ func New(l *lexer.Lexer) *Parser {
 		l:      l,
 		errors: []string{},
 	}
+
+	// Register parsing functions
+	p.prefixParseFns = make(map[token.TokenType]prefixParseFn)
+	p.registerPrefix(token.IDENT, p.parseIdentifier)
 
 	// Read two tokens, so curToken and peekToken are both set
 	p.nextToken()
@@ -79,7 +107,7 @@ func (p *Parser) parseStatement() ast.Statement {
 	case token.RETURN:
 		return p.parseReturnStatement()
 	default:
-		return nil
+		return p.parseExpressionStatement()
 	}
 }
 
@@ -124,6 +152,33 @@ func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 	return stmt
 }
 
+func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
+	// Create "return" statement with current token
+	stmt := &ast.ExpressionStatement{Token: p.curToken}
+	stmt.Expression = p.parseExpression(LOWEST)
+
+	// Check for optional semicolon
+	if p.peekTokenIs(token.SEMICOLON) {
+		p.nextToken()
+	}
+
+	return stmt
+}
+
+func (p *Parser) parseExpression(precedence int) ast.Expression {
+	prefix := p.prefixParseFns[p.curToken.Type]
+	if prefix == nil {
+		return nil
+	}
+	leftExp := prefix()
+
+	return leftExp
+}
+
+func (p *Parser) parseIdentifier() ast.Expression {
+	return &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+}
+
 // Check whether the next token is of the expected token type, advance the parser
 func (p *Parser) expectPeek(t token.TokenType) bool {
 	if p.peekTokenIs(t) {
@@ -143,4 +198,14 @@ func (p *Parser) curTokenIs(t token.TokenType) bool {
 // Check if next token is of the given type
 func (p *Parser) peekTokenIs(t token.TokenType) bool {
 	return p.peekToken.Type == t
+}
+
+// Register a prefix function to a token type
+func (p *Parser) registerPrefix(tokenType token.TokenType, fn prefixParseFn) {
+	p.prefixParseFns[tokenType] = fn
+}
+
+// Register a infix function to a token type
+func (p *Parser) registerInfix(tokenType token.TokenType, fn infixParseFn) {
+	p.infixParseFns[tokenType] = fn
 }
